@@ -5,22 +5,25 @@ on:
       - main
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
+      # - run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+      # - run: docker build -t cygnetops/react-test -f Dockerfile.dev .
+      # - run: docker run -e CI=true cygnetops/react-test npm test
+      - run: docker build -t my-react-app -f Dockerfile.dev .
+      - run: docker run -e CI=true my-react-app npm test
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Generate deployment package
+        run: zip -r deploy.zip . -x '*.git*'
+
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v18
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Build Docker image
-        run: docker build -t myapp:latest .
-
-      # Example: Push image to ECR or deploy to S3
-      # - name: Deploy to AWS
-      #   run: your_deploy_command_here
+          application_name: frontend
+          environment_name: Frontend-env
+          existing_bucket_name: elasticbeanstalk-eu-north-1-837765878321
+          region: eu-north-1
+          version_label: ${{ github.sha }}
+          deployment_package: deploy.zip
